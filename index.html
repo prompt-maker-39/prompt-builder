@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Prompt Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f7f6f2;
+    --surface: #ffffff;
+    --surface2: #f0ede6;
+    --border: #e2ddd5;
+    --border-hover: #c8c2b8;
+    --text: #1a1916;
+    --text-sub: #6b6760;
+    --text-hint: #a09d99;
+    --accent: #2d5a3d;
+    --accent-bg: #edf4ef;
+    --accent-border: #b5d4bf;
+    --tag-bg: #ffffff;
+    --tag-sel-bg: #2d5a3d;
+    --tag-sel-text: #ffffff;
+    --tag-sel-border: #2d5a3d;
+    --prompt-bg: #1a1916;
+    --prompt-text: #e8e4dc;
+    --prompt-accent: #7ecf99;
+    --red: #c0392b;
+    --red-bg: #fdf0ee;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    width: 34px;
+    height: 34px;
+    background: var(--accent);
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .logo svg { width: 18px; height: 18px; }
+
+  header h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; }
+  header .sub { font-size: 12px; color: var(--text-hint); margin-left: auto; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 370px;
+    min-height: calc(100vh - 71px);
+  }
+
+  .left-panel { padding: 26px 30px; overflow-y: auto; }
+
+  .right-panel {
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 71px;
+    height: calc(100vh - 71px);
+  }
+
+  .section { margin-bottom: 26px; }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 12px;
+  }
+
+  .section-icon {
+    width: 26px; height: 26px;
+    border-radius: 7px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; flex-shrink: 0;
+  }
+
+  .section-label {
+    font-size: 12px; font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .section-note { font-size: 11px; color: var(--text-hint); margin-left: auto; }
+
+  .tag-grid { display: flex; flex-wrap: wrap; gap: 7px; }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border-radius: 100px;
+    border: 1.5px solid var(--border);
+    background: var(--tag-bg);
+    font-size: 12.5px;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.14s ease;
+    user-select: none;
+    line-height: 1;
+  }
+
+  .tag:hover { border-color: var(--border-hover); background: var(--surface2); }
+
+  .tag.selected {
+    background: var(--tag-sel-bg);
+    border-color: var(--tag-sel-border);
+    color: var(--tag-sel-text);
+    font-weight: 500;
+  }
+
+  .free-input {
+    width: 100%; padding: 9px 13px;
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    background: var(--surface);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12.5px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.14s;
+    margin-top: 9px;
+  }
+
+  .free-input:focus { border-color: var(--accent); }
+  .free-input::placeholder { color: var(--text-hint); }
+
+  .divider { height: 1px; background: var(--border); margin: 4px 0 22px; }
+
+  .panel-header { padding: 18px 22px 14px; border-bottom: 1px solid var(--border); }
+  .panel-header h2 { font-size: 11px; font-weight: 600; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
+  .sel-count { font-size: 11px; color: var(--text-hint); }
+  .sel-count span { color: var(--accent); font-weight: 600; }
+
+  .prompt-area { flex: 1; padding: 18px 22px; overflow-y: auto; display: flex; flex-direction: column; gap: 11px; }
+
+  .prompt-box { background: var(--prompt-bg); border-radius: 11px; padding: 14px 16px; }
+
+  .prompt-label { font-size: 10px; font-weight: 500; color: #5a6560; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 9px; }
+
+  #prompt-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px; line-height: 1.8;
+    color: var(--prompt-text);
+    word-break: break-word; white-space: pre-wrap;
+    min-height: 55px;
+  }
+
+  .placeholder-text { color: #3d4540; font-style: italic; }
+  .prompt-token { color: var(--prompt-accent); }
+
+  .neg-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    padding: 12px 14px;
+  }
+
+  .neg-label { font-size: 10px; font-weight: 500; color: var(--text-hint); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 7px; }
+
+  #neg-text { font-family: 'DM Mono', monospace; font-size: 11.5px; line-height: 1.7; color: var(--text-sub); word-break: break-word; }
+
+  .sel-summary { display: flex; flex-direction: column; gap: 5px; }
+
+  .sel-item { display: flex; gap: 8px; align-items: flex-start; }
+  .sel-cat { font-size: 10px; font-weight: 600; color: var(--text-hint); text-transform: uppercase; letter-spacing: 0.04em; min-width: 54px; padding-top: 1px; flex-shrink: 0; }
+  .sel-val { font-size: 12px; color: var(--text); line-height: 1.5; }
+
+  .panel-actions { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 7px; }
+
+  .btn {
+    width: 100%; padding: 10px 14px;
+    border-radius: 8px; border: 1.5px solid var(--border);
+    font-family: 'DM Sans', sans-serif; font-size: 12.5px; font-weight: 500;
+    cursor: pointer; transition: all 0.14s;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+  }
+
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #245033; }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-secondary { background: var(--surface); color: var(--text); }
+  .btn-secondary:hover { background: var(--surface2); border-color: var(--border-hover); }
+  .btn-danger { background: var(--red-bg); border-color: #f0c4bf; color: var(--red); }
+  .btn-danger:hover { background: #fce8e5; }
+
+  .copy-feedback { font-size: 11px; color: var(--accent); text-align: center; height: 15px; transition: opacity 0.3s; }
+
+  @media (max-width: 820px) {
+    .layout { grid-template-columns: 1fr; }
+    .right-panel { position: static; height: auto; border-left: none; border-top: 1px solid var(--border); }
+    header .sub { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+    </svg>
+  </div>
+  <h1>AI Prompt Builder</h1>
+  <span class="sub">Firefly / Midjourney / Stable Diffusion 対応</span>
+</header>
+
+<div class="layout">
+
+  <div class="left-panel">
+
+    <!-- Subject -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">🎯</div>
+        <span class="section-label">主題 / Subject</span>
+        <span class="section-note">複数選択可</span>
+      </div>
+      <div class="tag-grid" data-category="subject" data-multi="true">
+        <div class="tag" data-value="a young woman">👩 若い女性</div>
+        <div class="tag" data-value="an elderly man">👴 老人</div>
+        <div class="tag" data-value="a child">🧒 子ども</div>
+        <div class="tag" data-value="a warrior">⚔️ 戦士</div>
+        <div class="tag" data-value="a wizard">🧙 魔法使い</div>
+        <div class="tag" data-value="a robot">🤖 ロボット</div>
+        <div class="tag" data-value="a cat">🐱 猫</div>
+        <div class="tag" data-value="a dragon">🐉 ドラゴン</div>
+        <div class="tag" data-value="a landscape">🏔️ 風景</div>
+        <div class="tag" data-value="a city street">🏙️ 都市の街並み</div>
+        <div class="tag" data-value="a forest">🌲 森</div>
+        <div class="tag" data-value="an ocean">🌊 海</div>
+        <div class="tag" data-value="a spaceship">🚀 宇宙船</div>
+        <div class="tag" data-value="a castle">🏰 城</div>
+        <div class="tag" data-value="modern office background, open office space, blurred background">🏢 オフィスの背景</div>
+        <div class="tag" data-value="eco nature, lush green plants, botanical, sustainable environment">🌿 エコ・植物</div>
+        <div class="tag" data-value="IT technology, digital network, glowing circuit board, data visualization">💻 IT・テクノロジー</div>
+        <div class="tag" data-value="cyber security, digital lock, binary code, data protection, dark blue background">🔒 サイバーセキュリティ</div>
+        <div class="tag" data-value="modern living room, interior design, cozy home, stylish decor">🛋️ モダンなリビング</div>
+      </div>
+      <input class="free-input" type="text" placeholder="その他の主題を自由に入力（例: a lone traveler, a futuristic city）" data-category="subject-custom">
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Style -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">🎨</div>
+        <span class="section-label">アートスタイル</span>
+        <span class="section-note">1つ選択</span>
+      </div>
+      <div class="tag-grid" data-category="style" data-multi="false">
+        <div class="tag" data-value="photorealistic, hyperrealistic photography">📷 フォトリアル</div>
+        <div class="tag" data-value="digital art, concept art">🖥️ デジタルアート</div>
+        <div class="tag" data-value="watercolor painting, soft edges">🌸 水彩画</div>
+        <div class="tag" data-value="oil painting, textured brushstrokes">🖼️ 油絵</div>
+        <div class="tag" data-value="anime style, manga, illustration">🎌 アニメ風</div>
+        <div class="tag" data-value="3D render, octane render, cinema 4d">📦 3D レンダー</div>
+        <div class="tag" data-value="pixel art, 8-bit retro style">👾 ピクセルアート</div>
+        <div class="tag" data-value="pencil sketch, hand-drawn, black and white">✏️ 鉛筆スケッチ</div>
+        <div class="tag" data-value="flat design, minimalist illustration, vector">⬜ フラットデザイン</div>
+        <div class="tag" data-value="impressionist painting, painterly">🌻 印象派</div>
+        <div class="tag" data-value="dark fantasy art, gothic, dramatic">🌑 ダーク・ファンタジー</div>
+        <div class="tag" data-value="Studio Ghibli style, hand-painted animation">🍃 ジブリ風</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Lighting -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">💡</div>
+        <span class="section-label">ライティング / 光</span>
+        <span class="section-note">複数選択可</span>
+      </div>
+      <div class="tag-grid" data-category="lighting" data-multi="true">
+        <div class="tag" data-value="golden hour lighting, warm sunlight">🌅 ゴールデンアワー</div>
+        <div class="tag" data-value="dramatic cinematic lighting">🎬 シネマティック</div>
+        <div class="tag" data-value="soft diffused natural light">☁️ ソフト自然光</div>
+        <div class="tag" data-value="neon lights, cyberpunk glow">🌆 ネオン</div>
+        <div class="tag" data-value="studio lighting, professional lighting">📸 スタジオ照明</div>
+        <div class="tag" data-value="moonlight, night scene, blue tones">🌙 月明かり</div>
+        <div class="tag" data-value="volumetric light, god rays, sunbeams">✨ ゴッドレイ</div>
+        <div class="tag" data-value="backlit, rim lighting, silhouette">🌟 バックライト</div>
+        <div class="tag" data-value="candlelight, fire light, warm orange glow">🕯️ キャンドル光</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Mood -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">🌈</div>
+        <span class="section-label">雰囲気 / ムード</span>
+        <span class="section-note">1つ選択</span>
+      </div>
+      <div class="tag-grid" data-category="mood" data-multi="false">
+        <div class="tag" data-value="peaceful, serene, tranquil">😌 穏やか</div>
+        <div class="tag" data-value="epic, majestic, grand, awe-inspiring">⚡ 壮大・エピック</div>
+        <div class="tag" data-value="mysterious, eerie, moody">🌫️ ミステリアス</div>
+        <div class="tag" data-value="joyful, cheerful, vibrant, colorful">😊 明るい・楽しい</div>
+        <div class="tag" data-value="romantic, dreamy, soft">💖 ロマンティック</div>
+        <div class="tag" data-value="dark, ominous, threatening, tense">🖤 ダーク・不穏</div>
+        <div class="tag" data-value="nostalgic, vintage, retro atmosphere">📻 ノスタルジック</div>
+        <div class="tag" data-value="futuristic, sci-fi, high-tech">🔮 近未来的</div>
+        <div class="tag" data-value="whimsical, magical, fantastical">🦄 幻想的・魔法的</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Camera -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">📷</div>
+        <span class="section-label">構図 / カメラ</span>
+        <span class="section-note">複数選択可</span>
+      </div>
+      <div class="tag-grid" data-category="camera" data-multi="true">
+        <div class="tag" data-value="close-up portrait, face detail">🔍 クローズアップ</div>
+        <div class="tag" data-value="wide shot, establishing shot, vast landscape">🌏 ワイドショット</div>
+        <div class="tag" data-value="aerial view, bird's eye view, drone shot">🦅 俯瞰（真上）</div>
+        <div class="tag" data-value="low angle shot, looking up, dramatic perspective">⬇️ ローアングル</div>
+        <div class="tag" data-value="bokeh background, shallow depth of field, f/1.8">🌸 ボケ効果</div>
+        <div class="tag" data-value="symmetrical composition, centered">⬛ シンメトリー</div>
+        <div class="tag" data-value="dynamic angle, tilted, action composition">💥 ダイナミック構図</div>
+        <div class="tag" data-value="macro photography, extreme close-up">🔬 マクロ撮影</div>
+        <div class="tag" data-value="rule of thirds, off-center composition">📐 三分割構図</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Composition -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">🖼️</div>
+        <span class="section-label">構図 / Composition</span>
+        <span class="section-note">1つ選択</span>
+      </div>
+      <div class="tag-grid" data-category="composition" data-multi="false">
+        <div class="tag" data-value="copy space on the left side, subject on the right, empty area for text overlay">⬅️ コピースペース（左）</div>
+        <div class="tag" data-value="copy space on the right side, subject on the left, empty area for text overlay">➡️ コピースペース（右）</div>
+        <div class="tag" data-value="16:9 widescreen horizontal composition, wide angle, cinematic aspect ratio">📺 16:9 横長</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Quality -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">✨</div>
+        <span class="section-label">クオリティ強化</span>
+        <span class="section-note">複数選択可</span>
+      </div>
+      <div class="tag-grid" data-category="quality" data-multi="true">
+        <div class="tag" data-value="masterpiece, best quality, ultra-detailed">🏆 最高品質</div>
+        <div class="tag" data-value="8K resolution, ultra high resolution">📺 8K解像度</div>
+        <div class="tag" data-value="award-winning photography, stunning">🥇 受賞作品レベル</div>
+        <div class="tag" data-value="intricate details, highly detailed texture">🔍 精密なディテール</div>
+        <div class="tag" data-value="trending on ArtStation, CGI quality">🎯 ArtStation品質</div>
+        <div class="tag" data-value="sharp focus, crisp, high sharpness">📌 シャープフォーカス</div>
+        <div class="tag" data-value="vibrant colors, color graded, rich tones">🎨 鮮やかな色彩</div>
+        <div class="tag" data-value="professional color grading, cinematic color">🎥 シネマカラー</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Negative -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">🚫</div>
+        <span class="section-label">除外したいもの（ネガティブ）</span>
+        <span class="section-note">複数選択可</span>
+      </div>
+      <div class="tag-grid" data-category="negative" data-multi="true">
+        <div class="tag" data-value="blurry">🌫️ ぼやけ</div>
+        <div class="tag" data-value="deformed, distorted anatomy">❌ 変形・歪み</div>
+        <div class="tag" data-value="extra limbs, extra fingers">🖐️ 余分な手足・指</div>
+        <div class="tag" data-value="bad proportions, ugly">😖 悪いプロポーション</div>
+        <div class="tag" data-value="low quality, low resolution, pixelated">📉 低画質</div>
+        <div class="tag" data-value="watermark, signature, text, logo">💧 透かし・テキスト</div>
+        <div class="tag" data-value="overexposed, underexposed">⚡ 露出過不足</div>
+        <div class="tag" data-value="noise, grain, artifacts">🔴 ノイズ・ノイズ</div>
+        <div class="tag" data-value="cropped, cut off, out of frame">✂️ フレーム外</div>
+        <div class="tag" data-value="duplicate, clone">♊ 重複・クローン</div>
+      </div>
+    </div>
+
+    <div style="height:36px;"></div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div class="panel-header">
+      <h2>生成プロンプト</h2>
+      <div class="sel-count">選択済み: <span id="count">0</span> 項目</div>
+    </div>
+
+    <div class="prompt-area">
+      <div>
+        <div class="prompt-box">
+          <div class="prompt-label">✦ Positive Prompt</div>
+          <div id="prompt-text"><span class="placeholder-text">← 左のボタンを選んで
+プロンプトを組み立てましょう</span></div>
+        </div>
+      </div>
+
+      <div class="neg-box" id="neg-box" style="display:none;">
+        <div class="neg-label">⊘ Negative Prompt</div>
+        <div id="neg-text"></div>
+      </div>
+
+      <div class="sel-summary" id="sel-summary"></div>
+    </div>
+
+    <div class="panel-actions">
+      <div class="copy-feedback" id="copy-feedback"></div>
+      <button class="btn btn-primary" onclick="copyPrompt()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        プロンプトをコピー
+      </button>
+      <button class="btn btn-secondary" onclick="copyNegative()" id="neg-copy-btn" style="display:none;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        ネガティブプロンプトをコピー
+      </button>
+      <button class="btn btn-danger" onclick="resetAll()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.07"/></svg>
+        リセット
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const state = {
+  subject: new Set(),
+  style: new Set(),
+  lighting: new Set(),
+  mood: new Set(),
+  camera: new Set(),
+  composition: new Set(),
+  quality: new Set(),
+  negative: new Set(),
+  'subject-custom': ''
+};
+
+const catLabels = {
+  subject: '主題', style: 'スタイル', lighting: 'ライト',
+  mood: 'ムード', camera: 'カメラ', composition: '構図', quality: '品質'
+};
+
+function buildPrompt() {
+  const parts = [];
+  const custom = state['subject-custom'].trim();
+  const subj = [...state.subject];
+  if (custom) subj.unshift(custom);
+  if (subj.length) parts.push(subj.join(', '));
+  ['style','lighting','mood','camera','composition','quality'].forEach(k => {
+    if (state[k].size) parts.push([...state[k]].join(', '));
+  });
+  return parts.join(', ');
+}
+
+function buildNeg() { return [...state.negative].join(', '); }
+
+function countAll() {
+  let c = 0;
+  ['subject','style','lighting','mood','camera','composition','quality','negative'].forEach(k => c += state[k].size);
+  if (state['subject-custom'].trim()) c++;
+  return c;
+}
+
+function render() {
+  const prompt = buildPrompt();
+  const neg = buildNeg();
+
+  document.getElementById('count').textContent = countAll();
+
+  const pe = document.getElementById('prompt-text');
+  if (prompt) {
+    pe.innerHTML = '';
+    prompt.split(', ').forEach((tok, i, arr) => {
+      const s = document.createElement('span');
+      s.className = 'prompt-token';
+      s.textContent = tok;
+      pe.appendChild(s);
+      if (i < arr.length - 1) pe.appendChild(document.createTextNode(', '));
+    });
+  } else {
+    pe.innerHTML = '<span class="placeholder-text">← 左のボタンを選んで\nプロンプトを組み立てましょう</span>';
+  }
+
+  const negBox = document.getElementById('neg-box');
+  const negBtn = document.getElementById('neg-copy-btn');
+  const negEl = document.getElementById('neg-text');
+  if (neg) {
+    negBox.style.display = 'block';
+    negBtn.style.display = 'flex';
+    negEl.textContent = neg;
+  } else {
+    negBox.style.display = 'none';
+    negBtn.style.display = 'none';
+  }
+
+  const summary = document.getElementById('sel-summary');
+  summary.innerHTML = '';
+  ['subject','style','lighting','mood','camera','composition','quality'].forEach(cat => {
+    const vals = [...state[cat]];
+    if (cat === 'subject' && state['subject-custom'].trim()) vals.unshift(state['subject-custom'].trim());
+    if (!vals.length) return;
+    const d = document.createElement('div');
+    d.className = 'sel-item';
+    d.innerHTML = `<span class="sel-cat">${catLabels[cat]}</span><span class="sel-val">${vals.map(v => v.split(',')[0]).join(' · ')}</span>`;
+    summary.appendChild(d);
+  });
+}
+
+document.querySelectorAll('.tag-grid').forEach(grid => {
+  const cat = grid.dataset.category;
+  const multi = grid.dataset.multi === 'true';
+  grid.querySelectorAll('.tag').forEach(tag => {
+    tag.addEventListener('click', () => {
+      const val = tag.dataset.value;
+      if (multi) {
+        if (state[cat].has(val)) { state[cat].delete(val); tag.classList.remove('selected'); }
+        else { state[cat].add(val); tag.classList.add('selected'); }
+      } else {
+        grid.querySelectorAll('.tag').forEach(t => t.classList.remove('selected'));
+        if (state[cat].has(val)) { state[cat].clear(); }
+        else { state[cat].clear(); state[cat].add(val); tag.classList.add('selected'); }
+      }
+      render();
+    });
+  });
+});
+
+document.querySelector('[data-category="subject-custom"]').addEventListener('input', function() {
+  state['subject-custom'] = this.value;
+  render();
+});
+
+function showFeedback(msg) {
+  const el = document.getElementById('copy-feedback');
+  el.textContent = msg;
+  el.style.opacity = '1';
+  setTimeout(() => { el.style.opacity = '0'; }, 2200);
+}
+
+function copyPrompt() {
+  const p = buildPrompt();
+  if (!p) { showFeedback('⚠ まず項目を選択してください'); return; }
+  navigator.clipboard.writeText(p).then(() => showFeedback('✓ コピーしました！AIに貼り付けてください')).catch(() => showFeedback('コピーに失敗しました'));
+}
+
+function copyNegative() {
+  const n = buildNeg();
+  if (!n) return;
+  navigator.clipboard.writeText(n).then(() => showFeedback('✓ ネガティブプロンプトをコピーしました'));
+}
+
+function resetAll() {
+  ['subject','style','lighting','mood','camera','composition','quality','negative'].forEach(k => state[k].clear());
+  state['subject-custom'] = '';
+  document.querySelectorAll('.tag.selected').forEach(t => t.classList.remove('selected'));
+  document.querySelector('[data-category="subject-custom"]').value = '';
+  render();
+  showFeedback('リセットしました');
+}
+
+render();
+</script>
+</body>
+</html>
